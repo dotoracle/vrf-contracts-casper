@@ -1,0 +1,13 @@
+[package]
+name = "common"
+version = "0.2.0"
+edition = "2018"
+
+[dependencies]
+casper-types = "3.0.0"
+casper-contract = { version = "3.0.0", features = ["test-support"], default-features = false }
+base64 = { version = "0.13.0", default-features = false, features = ["alloc"] }
+hex = { version = "0.4.3", default-features = false }
+casper_types_derive = "0.1.0"
+serde = { version = "1", features = ["derive", "alloc"], default-features = false }
+casper-event-standard = { version = "0.4.0", default-features = false }
