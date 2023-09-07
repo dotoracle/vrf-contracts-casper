@@ -91,6 +91,14 @@ pub(crate) fn default() -> EntryPoints {
     ));
 
     entry_points.add_entry_point(EntryPoint::new(
+        String::from("get_subscription_view"),
+        vec![Parameter::new("sub_id", CLType::U64)],
+        CLType::Any,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    ));
+
+    entry_points.add_entry_point(EntryPoint::new(
         String::from("get_current_sub_id"),
         vec![],
         CLType::U64,
@@ -332,6 +340,14 @@ pub(crate) fn default() -> EntryPoints {
             Parameter::new("sub_id", CLType::U64),
             Parameter::new("to", CLType::Key),
         ],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    ));
+
+    entry_points.add_entry_point(EntryPoint::new(
+        String::from("init"),
+        vec![],
         CLType::Unit,
         EntryPointAccess::Public,
         EntryPointType::Contract,

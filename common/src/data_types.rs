@@ -5,6 +5,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::helpers;
 
+#[derive(Serialize, Deserialize, Clone, CLTyped, ToBytes, FromBytes)]
+pub struct SubscriptionView {
+    pub balance: U128,
+    pub req_count: u64,
+    pub owner: Key,
+    pub consumers: Vec<Key>,
+}
+
 #[derive(Serialize, Deserialize, Clone, CLTyped, ToBytes, FromBytes, Default)]
 pub struct Subscription {
     pub balance: U128,
@@ -49,7 +57,7 @@ impl Default for RequestCommitment {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, CLTyped, ToBytes, FromBytes, Default)]
+#[derive(Serialize, Deserialize, Clone, CLTyped, ToBytes, FromBytes, Default, Copy)]
 pub struct Config {
     pub minimum_request_confirmations: u64,
     pub max_gas_limit: U128,

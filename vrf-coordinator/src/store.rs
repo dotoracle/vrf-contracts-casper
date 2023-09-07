@@ -167,7 +167,7 @@ get_set_no_set!(
     config,
     "config",
     Config,
-    Default::default(),
+    Config::default(),
     save_config,
     read_config,
     get_config
@@ -177,7 +177,7 @@ get_set_no_set!(
     fee_config,
     "fee_config",
     FeeConfig,
-    Default::default(),
+    FeeConfig::default(),
     save_fee_config,
     read_fee_config,
     get_fee_config

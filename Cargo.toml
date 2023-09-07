@@ -2,17 +2,15 @@
 members = [
     "common",
     "block-hash-store",
-    "vrf-coordinator"
+    "vrf-coordinator",
+    "tests",
+    "tests/test-session",
 ]
 
-default-members = [
-    "common"
-]
+default-members = ["common"]
 
 [profile.release]
 overflow-checks = true
 lto = true
 codegen-units = 1
-opt-level= "s"
-
-
+opt-level = "s"

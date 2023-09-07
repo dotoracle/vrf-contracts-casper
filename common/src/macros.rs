@@ -6,7 +6,7 @@ macro_rules! get_set {
         }
 
         pub fn $read() -> $t {
-            helpers::get_key("payment_token").unwrap_or($default)
+            helpers::get_key($arg_name).unwrap_or($default)
         }
 
         #[no_mangle]
@@ -31,12 +31,13 @@ macro_rules! get_set_no_set {
         }
 
         pub fn $read() -> $t {
-            helpers::get_key("payment_token").unwrap_or($default)
+            helpers::get_key($arg_name).unwrap_or($default)
         }
 
         #[no_mangle]
         pub extern "C" fn $get() {
-            runtime::ret(CLValue::from_t($read()).unwrap_or_revert())
+            let t = $read();
+            runtime::ret(CLValue::from_t(t).unwrap_or_revert())
         }
     };
 }

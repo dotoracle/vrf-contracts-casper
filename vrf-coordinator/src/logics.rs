@@ -11,7 +11,7 @@ use casper_types::{
 };
 use common::{
     constants::{MAX_CONSUMERS, MAX_NUM_WORDS, MAX_REQUEST_CONFIRMATIONS},
-    data_types::{Config, FeeConfig, Proof, RequestCommitment, Subscription, SubscriptionConfig},
+    data_types::{Config, FeeConfig, Proof, RequestCommitment, Subscription, SubscriptionConfig, SubscriptionView},
     erc20_helpers,
     error::Error,
     helpers::{
@@ -39,6 +39,24 @@ use crate::{
 
 pub fn initialize(payment_token: Key, block_hash_store: Key, price_feed: Key) {
     store::initialize(payment_token, block_hash_store, price_feed);
+}
+
+#[no_mangle]
+pub extern "C" fn get_subscription_view() {
+    let sub_id: u64 = runtime::get_named_arg("sub_id");
+    let s_config = read_subscription_config(&sub_id);
+    if s_config.owner == null_key() {
+        revert(Error::InvalidSubscription);
+    }
+
+    let s = read_subscription(&sub_id);
+
+    runtime::ret(CLValue::from_t(SubscriptionView {
+        balance: s.balance,
+        req_count: s.req_count,
+        owner: s_config.owner,
+        consumers: s_config.consumers,
+    }).unwrap_or_revert())
 }
 
 /**

@@ -50,13 +50,18 @@ fn call() {
     if !runtime::has_key(&format!("{}_package_hash", contract_name)) {
         let (contract_hash, contract_package_hash) =
             upgrade::install_contract(contract_name, entry_points::default(), NamedKeys::new());
-
+        let payment_token: Key = runtime::get_named_arg("payment_token");
+        let block_hash_store: Key = runtime::get_named_arg("block_hash_store");
+        let price_feed: Key = runtime::get_named_arg("price_feed");
         runtime::call_contract::<()>(
             contract_hash,
             INIT_ENTRY_POINT_NAME,
             with_testing_mod(&mut runtime_args! {
                 "contract_hash" => Key::from(contract_hash),
                 "contract_package_hash" => Key::from(contract_package_hash),
+                "payment_token" => payment_token,
+                "block_hash_store" => block_hash_store,
+                "price_feed" => price_feed
             }),
         );
     } else {
