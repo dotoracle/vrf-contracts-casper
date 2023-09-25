@@ -2,13 +2,10 @@ use core::ops::{Add, Shr};
 
 use alloc::{vec, vec::Vec};
 use casper_contract::contract_api::runtime;
-use casper_types::{
-    bytesrepr::{Bytes, FromBytes},
-    HashAddr, Key, U256,
-};
+use casper_types::{bytesrepr::Bytes, HashAddr, Key, U256};
 use common::{
     error::Error,
-    helpers::{add_mod, mulmod, null_key},
+    helpers::{add_mod, mulmod, null_key, u256_from_hash},
 };
 
 fn field_size() -> U256 {
@@ -64,11 +61,9 @@ fn verify_linear_combination_with_generator(
 }
 
 fn field_hash(b: &Bytes) -> U256 {
-    let mut ret = U256::from_bytes(&runtime::blake2b(b)).unwrap().0;
+    let mut ret = u256_from_hash(runtime::blake2b(b));
     while ret.ge(&field_size()) {
-        ret = U256::from_bytes(&runtime::blake2b(helpers::encode_1(&ret)))
-            .unwrap()
-            .0;
+        ret = u256_from_hash(runtime::blake2b(helpers::encode_1(&ret)));
     }
     ret
 }
@@ -221,7 +216,7 @@ fn scalar_from_curve_points(
     u_witness: Key,
     v: &Vec<U256>,
 ) -> U256 {
-    U256::from_bytes(&runtime::blake2b(helpers::encode_6(
+    u256_from_hash(runtime::blake2b(helpers::encode_6(
         &scalar_from_curve_points_hash_prefix(),
         hash,
         pk,
@@ -229,8 +224,6 @@ fn scalar_from_curve_points(
         v,
         &u_witness,
     )))
-    .unwrap()
-    .0
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -290,10 +283,8 @@ pub fn random_value_from_vrf_proof(proof: &Proof, seed: U256) -> U256 {
         proof.z_inv,
     );
 
-    U256::from_bytes(&runtime::blake2b(helpers::encode_2(
+    u256_from_hash(runtime::blake2b(helpers::encode_2(
         &vrf_random_output_hash_prefix(),
         &proof.gamma,
     )))
-    .unwrap()
-    .0
 }

@@ -15,3 +15,4 @@ pub mod owner;
 pub mod pausable;
 pub mod timestamp_testing;
 pub mod upgrade;
+pub mod events;

@@ -10,13 +10,12 @@ use casper_event_standard::Event;
 use casper_event_standard::Schemas;
 use casper_types::bytesrepr::Bytes;
 use casper_types::bytesrepr::ToBytes;
-use casper_types::HashAddr;
 use casper_types::Key;
 use casper_types::U128;
 use casper_types::U256;
 use common::data_types::FeeConfig;
 use common::helpers::current_block_timestamp;
-
+use common::events::RandomWordsRequested;
 #[derive(Event, Debug, PartialEq, Eq)]
 pub struct SubscriptionCreated {
     sub_id: u64,
@@ -164,44 +163,6 @@ impl ProvingKeyDeregistered {
         Self {
             key_hash,
             oracle,
-            timestamp: current_block_timestamp(),
-        }
-    }
-}
-
-#[derive(Event, Debug, PartialEq, Eq)]
-pub struct RandomWordsRequested {
-    key_hash: HashAddr,
-    request_id: U256,
-    pre_seed: U256,
-    sub_id: u64,
-    minimum_request_confirmations: u64,
-    callback_cas_limit: U128,
-    num_words: u64,
-    sender: Key,
-    timestamp: u64,
-}
-#[allow(clippy::too_many_arguments)]
-impl RandomWordsRequested {
-    pub fn new(
-        key_hash: HashAddr,
-        request_id: U256,
-        pre_seed: U256,
-        sub_id: u64,
-        minimum_request_confirmations: u64,
-        callback_cas_limit: U128,
-        num_words: u64,
-        sender: Key,
-    ) -> Self {
-        Self {
-            key_hash,
-            request_id,
-            pre_seed,
-            sub_id,
-            minimum_request_confirmations,
-            callback_cas_limit,
-            num_words,
-            sender,
             timestamp: current_block_timestamp(),
         }
     }

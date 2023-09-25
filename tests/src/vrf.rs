@@ -1,7 +1,7 @@
 use casper_types::{
     account::AccountHash,
     bytesrepr::{Bytes, ToBytes},
-    runtime_args, Key, RuntimeArgs, SECP256K1_TAG, U128, U256,
+    runtime_args, HashAddr, Key, RuntimeArgs, SECP256K1_TAG, U128, U256,
 };
 use common::{
     data_types::{Config, FeeConfig, SubscriptionView},
@@ -12,18 +12,18 @@ use test_env::env::TestEnv;
 use crate::utils::{self, key_to_contract_package_hash};
 
 pub struct VRFFixture {
-    test_env: TestEnv,
-    vrf: Key,
-    payment_token: Key,
-    block_hash_store: Key,
-    owner: AccountHash,
-    sub_owner: AccountHash,
-    sub_owner_address: Key,
-    consumer: AccountHash,
-    random: AccountHash,
-    random_address: Key,
-    oracle: AccountHash,
-    config: Config,
+    pub test_env: TestEnv,
+    pub vrf: Key,
+    pub payment_token: Key,
+    pub block_hash_store: Key,
+    pub owner: AccountHash,
+    pub sub_owner: AccountHash,
+    pub sub_owner_address: Key,
+    pub consumer: AccountHash,
+    pub random: AccountHash,
+    pub random_address: Key,
+    pub oracle: AccountHash,
+    pub config: Config,
 }
 
 impl VRFFixture {
@@ -96,10 +96,162 @@ impl VRFFixture {
         sub_id
     }
 
+    pub fn add_consumer(&mut self, caller: AccountHash, sub_id: u64, consumer: Key) {
+        self.test_env.call_contract(
+            Some(caller),
+            key_to_contract_package_hash(self.vrf),
+            "add_consumer",
+            runtime_args! {
+                "sub_id" => sub_id,
+                "consumer" => consumer
+            },
+            true,
+        );
+    }
+
+    pub fn remove_consumer(&mut self, caller: AccountHash, sub_id: u64, consumer: Key) {
+        self.test_env.call_contract(
+            Some(caller),
+            key_to_contract_package_hash(self.vrf),
+            "remove_consumer",
+            runtime_args! {
+                "sub_id" => sub_id,
+                "consumer" => consumer
+            },
+            true,
+        );
+    }
+
+    pub fn cancel_subscription(&mut self, caller: AccountHash, sub_id: u64, to: Key) {
+        self.test_env.call_contract(
+            Some(caller),
+            self.vrf.into_hash().unwrap().into(),
+            "cancel_subscription",
+            runtime_args! {
+                "sub_id" => sub_id,
+                "to" => to
+            },
+            true,
+        );
+    }
     pub fn get_subscription(&mut self, sub_id: u64) -> SubscriptionView {
-        self.test_env.call_view_function(self.vrf, "get_subscription_view", runtime_args! {
-            "sub_id" => sub_id,
-        })
+        self.test_env.call_view_function(
+            self.vrf,
+            "get_subscription_view",
+            runtime_args! {
+                "sub_id" => sub_id,
+            },
+        )
+    }
+
+    pub fn deposit_token(&mut self, caller: AccountHash, sub_id: u64, amount: U128) {
+        self.test_env
+            .approve(self.payment_token, caller, self.vrf, U256::MAX);
+        self.test_env.call_contract(
+            Some(caller),
+            self.vrf.into_hash().unwrap().into(),
+            "deposit_token",
+            runtime_args! {
+                "sub_id" => sub_id,
+                "amount" => amount
+            },
+            true,
+        );
+    }
+
+    pub fn balance_of(&mut self, token: Key, addr: Key) -> U128 {
+        let b: U256 = self.test_env.call_view_function(
+            token,
+            "balance_of",
+            runtime_args! {
+                "address" => addr,
+            },
+        );
+        b.as_u128().into()
+    }
+
+    pub fn recover_funds(&mut self, caller: AccountHash, to: Key) {
+        self.test_env.call_contract(
+            Some(caller),
+            self.vrf.into_hash().unwrap().into(),
+            "recover_funds",
+            runtime_args! {
+                "to" => to,
+            },
+            true,
+        );
+    }
+
+    pub fn request_random_words(
+        &mut self,
+        caller: AccountHash,
+        key_hash: HashAddr,
+        sub_id: u64,
+        request_confirmations: u64,
+        callback_gas_limit: U128,
+        num_words: u64,
+    ) {
+        self.test_env.call_contract(
+            Some(caller),
+            self.vrf.into_hash().unwrap().into(),
+            "request_random_words",
+            runtime_args! {
+                "key_hash" => key_hash,
+                "sub_id" => sub_id,
+                "request_confirmations" => request_confirmations,
+                "callback_gas_limit" => callback_gas_limit,
+                "num_words" => num_words
+            },
+            true,
+        );
+    }
+
+    pub fn register_proving_key(&mut self, caller: AccountHash, oracle: Key, test_key: Bytes) {
+        self.test_env.call_contract(
+            Some(caller),
+            self.vrf.into_hash().unwrap().into(),
+            "register_proving_key",
+            runtime_args! {
+                "oracle" => oracle,
+                "public_proving_key" => test_key,
+            },
+            true,
+        );
+    }
+
+    pub fn deregister_proving_key(&mut self, caller: AccountHash, test_key: Bytes) {
+        self.test_env.call_contract(
+            Some(caller),
+            self.vrf.into_hash().unwrap().into(),
+            "deregister_proving_key",
+            runtime_args! {
+                "public_proving_key" => test_key,
+            },
+            true,
+        );
+    }
+
+    pub fn fulfill_random_words(&mut self, caller: AccountHash, proof: Bytes, rc: Bytes) {
+        self.test_env.call_contract(
+            Some(caller),
+            self.vrf.into_hash().unwrap().into(),
+            "fulfill_random_words",
+            runtime_args! {
+                "proof" => proof,
+                "rc" => rc,
+            },
+            true,
+        );
+    }
+
+    pub fn hash_of_key(&mut self, test_key: Bytes) -> HashAddr {
+        self.test_env.call_view_function(
+            self.vrf,
+            "hash_of_key",
+            runtime_args! {
+                "public_proving_key" => test_key.clone()
+            },
+        )
     }
 }
 
@@ -254,7 +406,6 @@ mod test_set_config {
     }
 }
 
-
 #[cfg(test)]
 mod test_create_subscription {
     use super::setup;
@@ -267,5 +418,335 @@ mod test_create_subscription {
         let subscription = fixture.get_subscription(sub_id);
         assert!(subscription.balance.as_u128() == 0);
         assert!(subscription.owner == fixture.sub_owner_address);
+    }
+}
+
+#[cfg(test)]
+mod test_cancel_subscription {
+    use casper_types::U256;
+
+    use super::{setup, VRFFixture};
+
+    fn before_each() -> (VRFFixture, u64) {
+        let mut fixture = setup();
+        let sub_id = fixture.create_subscription(&[]);
+        (fixture, sub_id)
+    }
+
+    #[test]
+    #[should_panic = "User(10013)"]
+    fn test_subscription_must_exist() {
+        let (mut fixture, _) = before_each();
+        fixture.cancel_subscription(fixture.sub_owner, 1203123123, fixture.sub_owner_address);
+    }
+
+    #[test]
+    #[should_panic = "User(10016)"]
+    fn test_must_be_owner() {
+        let (mut fixture, sub_id) = before_each();
+        fixture.cancel_subscription(fixture.random, sub_id, fixture.sub_owner_address);
+    }
+
+    #[test]
+    #[should_panic = "User(10013)"]
+    fn test_on_cancel() {
+        let (mut fixture, sub_id) = before_each();
+        fixture.test_env.approve(
+            fixture.payment_token,
+            fixture.sub_owner,
+            fixture.vrf,
+            U256::MAX,
+        );
+        fixture.deposit_token(fixture.sub_owner, sub_id, 1000.into());
+        fixture.cancel_subscription(fixture.sub_owner, sub_id, fixture.random_address);
+        let random_balance = fixture.balance_of(fixture.payment_token, fixture.random_address);
+        assert!(random_balance.to_string() == "1000000000000001000");
+        fixture.get_subscription(sub_id);
+    }
+}
+
+#[cfg(test)]
+mod test_recover_funds {
+
+    use super::{setup, VRFFixture};
+
+    fn before_each() -> (VRFFixture, u64) {
+        let mut fixture = setup();
+        let sub_id = fixture.create_subscription(&[]);
+        (fixture, sub_id)
+    }
+
+    #[test]
+    #[should_panic = "User(10002)"]
+    fn test_only_owner_can_recover() {
+        let (mut fixture, _) = before_each();
+        fixture.recover_funds(fixture.sub_owner, fixture.random_address);
+    }
+
+    // #[test]
+    // fn test_owner_can_recover_payment_token() {
+    //     let (mut fixture, _) = before_each();
+    //     assert!(fixture.balance_of(fixture.payment_token, fixture.random_address) == U128::zero());
+    // }
+}
+
+#[cfg(test)]
+mod test_request_random_words {
+    use casper_types::{
+        bytesrepr::{Bytes, ToBytes},
+        runtime_args, HashAddr, Key, RuntimeArgs, U128, U256,
+    };
+
+    use super::{setup, VRFFixture};
+
+    fn before_each() -> (VRFFixture, u64, HashAddr) {
+        let mut fixture = setup();
+        let sub_id = fixture.create_subscription(&[Key::from(fixture.consumer)]);
+        let test_key = vec![U256::one(), U256::from(2)];
+        let test_key_bytes = Bytes::from(test_key.to_bytes().unwrap());
+        let kh: HashAddr = fixture.test_env.call_view_function(
+            fixture.vrf,
+            "hash_of_key",
+            runtime_args! {
+                "public_proving_key" => test_key_bytes
+            },
+        );
+        (fixture, sub_id, kh)
+    }
+
+    #[test]
+    #[should_panic = "User(10013)"]
+    fn test_invalid_sub_id() {
+        let (mut fixture, _, kh) = before_each();
+        fixture.request_random_words(fixture.random, kh, 12301928312, 1, 1000.into(), 1);
+    }
+
+    #[test]
+    #[should_panic = "User(10012)"]
+    fn test_invalid_consumer() {
+        let (mut fixture, sub_id, kh) = before_each();
+        fixture.request_random_words(fixture.random, kh, sub_id, 1, 1000.into(), 1);
+    }
+
+    #[test]
+    #[should_panic = "User(10020)"]
+    fn test_invalid_req_confs() {
+        let (mut fixture, sub_id, kh) = before_each();
+        fixture.request_random_words(fixture.consumer, kh, sub_id, 0, 1000.into(), 1);
+    }
+
+    #[test]
+    #[should_panic = "User(10021)"]
+    fn test_gas_limit_too_high() {
+        let (mut fixture, sub_id, kh) = before_each();
+        fixture.deposit_token(
+            fixture.sub_owner,
+            sub_id,
+            U128::from(1000000000000000000_u128),
+        );
+        fixture.request_random_words(
+            fixture.consumer,
+            kh,
+            sub_id,
+            1,
+            100_000_000_001_u128.into(),
+            1,
+        );
+    }
+
+    #[test]
+    #[should_panic = "User(10012)"]
+    fn test_add_remove_consumer_invariant() {
+        let (mut fixture, sub_id, kh) = before_each();
+        fixture.deposit_token(
+            fixture.sub_owner,
+            sub_id,
+            U128::from(1000000000000000000_u128),
+        );
+        fixture.add_consumer(fixture.sub_owner, sub_id, fixture.random_address);
+        fixture.remove_consumer(fixture.sub_owner, sub_id, fixture.random_address);
+        fixture.request_random_words(fixture.random, kh, sub_id, 1, 1000.into(), 1);
+    }
+
+    #[test]
+    #[should_panic = "User(10012)"]
+    fn test_cancel_add_subscription_invariant() {
+        let (mut fixture, mut sub_id, kh) = before_each();
+        fixture.deposit_token(
+            fixture.sub_owner,
+            sub_id,
+            U128::from(1000000000000000000_u128),
+        );
+        fixture.cancel_subscription(fixture.sub_owner, sub_id, fixture.random_address);
+        sub_id = fixture.create_subscription(&[]);
+        fixture.request_random_words(fixture.random, kh, sub_id, 1, 1000.into(), 1);
+    }
+}
+
+#[cfg(test)]
+mod test_key_registration {
+    use casper_types::{
+        bytesrepr::{Bytes, ToBytes},
+        runtime_args, HashAddr, RuntimeArgs, U256,
+    };
+
+    use super::{setup, VRFFixture};
+
+    fn before_each() -> (VRFFixture, Bytes, HashAddr) {
+        let mut fixture = setup();
+        let test_key = vec![U256::one(), U256::from(2)];
+        let test_key_bytes = Bytes::from(test_key.to_bytes().unwrap());
+        let kh: HashAddr = fixture.test_env.call_view_function(
+            fixture.vrf,
+            "hash_of_key",
+            runtime_args! {
+                "public_proving_key" => test_key_bytes.clone()
+            },
+        );
+        (fixture, test_key_bytes, kh)
+    }
+
+    #[test]
+    #[should_panic = "User(10023)"]
+    fn test_cannot_reregister_key() {
+        let (mut fixture, test_key, _) = before_each();
+        fixture.register_proving_key(fixture.owner, fixture.sub_owner_address, test_key.clone());
+        fixture.register_proving_key(fixture.owner, fixture.sub_owner_address, test_key.clone());
+    }
+
+    #[test]
+    #[should_panic = "User(10024)"]
+    fn test_cannot_deregister_unregistered_key() {
+        let (mut fixture, test_key, _) = before_each();
+        fixture.deregister_proving_key(fixture.owner, test_key.clone());
+    }
+
+    #[test]
+    fn test_can_reregister_after_deregister() {
+        let (mut fixture, test_key, _) = before_each();
+        fixture.register_proving_key(fixture.owner, fixture.sub_owner_address, test_key.clone());
+        fixture.deregister_proving_key(fixture.owner, test_key.clone());
+        fixture.register_proving_key(fixture.owner, fixture.random_address, test_key.clone());
+    }
+}
+
+#[cfg(test)]
+mod test_fulfill_random_words {
+    use casper_types::{
+        bytesrepr::{Bytes, ToBytes},
+        Key, U256,
+    };
+    use common::{
+        data_types::{Proof, RequestCommitment},
+        events::RandomWordsRequested,
+    };
+
+    use super::{setup, VRFFixture};
+
+    fn before_each() -> (VRFFixture, Bytes) {
+        let mut fixture = setup();
+        let test_key = vec![U256::one(), U256::from(2)];
+        let test_key_bytes = Bytes::from(test_key.to_bytes().unwrap());
+        fixture.register_proving_key(
+            fixture.owner,
+            fixture.sub_owner_address,
+            test_key_bytes.clone(),
+        );
+        (fixture, test_key_bytes)
+    }
+
+    #[test]
+    #[should_panic = "User(10024)"]
+    fn test_unregistered_key_should_fail() {
+        let (mut fixture, _) = before_each();
+        let proof = Proof {
+            pk: vec![U256::one(), U256::from(3)].to_bytes().unwrap().into(),
+            gamma: vec![U256::one(), U256::from(2)].to_bytes().unwrap().into(),
+            c: U256::from(1),
+            s: U256::from(1),
+            seed: U256::from(1),
+            u_witness: fixture.random_address,
+            c_gamma_witness: vec![U256::one(), U256::from(2)].to_bytes().unwrap().into(),
+            s_hash_witness: vec![U256::one(), U256::from(2)].to_bytes().unwrap().into(),
+            z_inv: U256::from(1),
+        };
+        let proof = proof.to_bytes().unwrap().into();
+        let rc = RequestCommitment {
+            block_num: 1,
+            sub_id: 1,
+            callback_gas_limit: 3.into(),
+            num_words: 4,
+            sender: fixture.random_address,
+        };
+
+        let rc = rc.to_bytes().unwrap().into();
+        fixture.fulfill_random_words(fixture.oracle, proof, rc);
+    }
+
+    #[test]
+    #[should_panic = "User(10027)"]
+    fn test_no_corresponding_request() {
+        let (mut fixture, _) = before_each();
+        let proof = Proof {
+            pk: vec![U256::one(), U256::from(2)].to_bytes().unwrap().into(),
+            gamma: vec![U256::one(), U256::from(2)].to_bytes().unwrap().into(),
+            c: U256::from(1),
+            s: U256::from(1),
+            seed: U256::from(1),
+            u_witness: fixture.random_address,
+            c_gamma_witness: vec![U256::one(), U256::from(2)].to_bytes().unwrap().into(),
+            s_hash_witness: vec![U256::one(), U256::from(2)].to_bytes().unwrap().into(),
+            z_inv: U256::from(1),
+        };
+        let proof = proof.to_bytes().unwrap().into();
+        let rc = RequestCommitment {
+            block_num: 1,
+            sub_id: 1,
+            callback_gas_limit: 3.into(),
+            num_words: 4,
+            sender: fixture.random_address,
+        };
+
+        let rc = rc.to_bytes().unwrap().into();
+        fixture.fulfill_random_words(fixture.oracle, proof, rc);
+    }
+
+    #[test]
+    #[should_panic = "User(10028)"]
+    fn test_incorrect_commitment_wrong_blocknum() {
+        let (mut fixture, test_key) = before_each();
+        let sub_id = fixture.create_subscription(&[Key::from(fixture.consumer)]);
+        fixture.deposit_token(fixture.sub_owner, sub_id, 1000000000000000000_u128.into());
+        let kh = fixture.hash_of_key(test_key);
+        let event_length = fixture.test_env.get_event_length(fixture.vrf);
+        fixture.request_random_words(fixture.consumer, kh, sub_id, 1, 1000.into(), 1);
+
+        let req_recipt: RandomWordsRequested = fixture
+            .test_env
+            .get_event(fixture.vrf, event_length as usize)
+            .unwrap();
+
+        let proof = Proof {
+            pk: vec![U256::one(), U256::from(2)].to_bytes().unwrap().into(),
+            gamma: vec![U256::one(), U256::from(2)].to_bytes().unwrap().into(),
+            c: U256::from(1),
+            s: U256::from(1),
+            seed: req_recipt.pre_seed,
+            u_witness: fixture.random_address,
+            c_gamma_witness: vec![U256::one(), U256::from(2)].to_bytes().unwrap().into(),
+            s_hash_witness: vec![U256::one(), U256::from(2)].to_bytes().unwrap().into(),
+            z_inv: U256::from(1),
+        };
+        let proof: Bytes = proof.to_bytes().unwrap().into();
+        let rc = RequestCommitment {
+            block_num: req_recipt.timestamp + 1,    //wrong block number
+            sub_id,
+            callback_gas_limit: 1000.into(),
+            num_words: 1,
+            sender: fixture.consumer.into(),
+        };
+
+        let rc = rc.to_bytes().unwrap().into();
+        fixture.fulfill_random_words(fixture.oracle, proof, rc);
     }
 }

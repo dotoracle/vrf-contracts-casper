@@ -1,6 +1,6 @@
 use core::convert::TryInto;
 
-use alloc::{borrow::ToOwned, vec, vec::Vec};
+use alloc::{borrow::ToOwned, string::ToString, vec, vec::Vec, format};
 use casper_contract::{
     contract_api::runtime::{self, revert},
     unwrap_or_revert::UnwrapOrRevert,
@@ -11,12 +11,15 @@ use casper_types::{
 };
 use common::{
     constants::{MAX_CONSUMERS, MAX_NUM_WORDS, MAX_REQUEST_CONFIRMATIONS},
-    data_types::{Config, FeeConfig, Proof, RequestCommitment, Subscription, SubscriptionConfig, SubscriptionView},
+    data_types::{
+        Config, FeeConfig, Proof, RequestCommitment, Subscription, SubscriptionConfig,
+        SubscriptionView,
+    },
     erc20_helpers,
     error::Error,
     helpers::{
         self, current_block_timestamp, get_immediate_caller_key, get_self_key, null_key,
-        to_vec_string,
+        to_vec_string, u256_from_hash,
     },
     interfaces::{call_raw_fulfill_random_words, get_block_hash},
     lock::{lock_contract, unlock_contract, when_not_locked},
@@ -51,12 +54,15 @@ pub extern "C" fn get_subscription_view() {
 
     let s = read_subscription(&sub_id);
 
-    runtime::ret(CLValue::from_t(SubscriptionView {
-        balance: s.balance,
-        req_count: s.req_count,
-        owner: s_config.owner,
-        consumers: s_config.consumers,
-    }).unwrap_or_revert())
+    runtime::ret(
+        CLValue::from_t(SubscriptionView {
+            balance: s.balance,
+            req_count: s.req_count,
+            owner: s_config.owner,
+            consumers: s_config.consumers,
+        })
+        .unwrap_or_revert(),
+    )
 }
 
 /**
@@ -251,6 +257,7 @@ pub extern "C" fn request_random_words() {
     }
     let nonce = current_nonce + 1;
     let (request_id, pre_seed) = _compute_request_id(key_hash, caller, sub_id, nonce);
+    helpers::log_msg(&format!("request_random_words request_id {:?}", &request_id.to_string()));
     // save block timestamp instead of block height as there is no way to get block height from contract
     save_request_commitment(
         &request_id,
@@ -263,7 +270,7 @@ pub extern "C" fn request_random_words() {
             &caller,
         )),
     );
-    casper_event_standard::emit(events::RandomWordsRequested::new(
+    casper_event_standard::emit(common::events::RandomWordsRequested::new(
         key_hash,
         request_id,
         pre_seed,
@@ -294,11 +301,10 @@ pub extern "C" fn fulfill_random_words() {
 
     let mut random_words: Vec<U256> = vec![];
     for i in 0..rc.num_words {
-        random_words.push(
-            U256::from_bytes(&runtime::blake2b(helpers::encode_2(&randomness, &i)))
-                .unwrap()
-                .0,
-        );
+        random_words.push(u256_from_hash(runtime::blake2b(helpers::encode_2(
+            &randomness,
+            &i,
+        ))));
     }
 
     save_request_commitment(&request_id, &Default::default());
@@ -569,23 +575,29 @@ fn _cancel_subscription_helper(sub_id: u64, to: Key) {
 
 fn _compute_request_id(kh: HashAddr, sender: Key, sub_id: u64, nonce: u64) -> (U256, U256) {
     let pre_seed = runtime::blake2b(helpers::encode_4(&kh, &sender, &sub_id, &nonce));
+    helpers::log_msg(&format!("_compute_request_id kh {:?}, pre_seed {:?}", &hex::encode(kh), &hex::encode(pre_seed)));
     (
-        U256::from_bytes(&runtime::blake2b(helpers::encode_2(&kh, &pre_seed)))
-            .unwrap()
-            .0,
-        U256::from_bytes(&pre_seed).unwrap().0,
+        u256_from_hash(runtime::blake2b(helpers::encode_2(&kh, &u256_from_hash(pre_seed).to_string()))),
+        u256_from_hash(pre_seed),
     )
 }
 
 fn _get_randomness_from_proof(proof: &Proof, rc: &RequestCommitment) -> (HashAddr, U256, U256) {
+    helpers::log_msg("_get_randomness_from_proof");
     let key_hash = _hash_of_key(&proof.pk.to_vec());
     let oracle = read_proving_key(&key_hash);
     if oracle == null_key() {
         revert(Error::NoSuchProvingKey);
     }
-    let request_id = U256::from_bytes(&runtime::blake2b(helpers::encode_2(&key_hash, &proof.seed)))
-        .unwrap()
-        .0;
+
+    helpers::log_msg(
+        &runtime::blake2b(helpers::encode_2(&key_hash, &proof.seed))
+            .len()
+            .to_string(),
+    );
+    helpers::log_msg(&format!("_get_randomness_from_proof kh {:?}, pre_seed {:?}", &hex::encode(key_hash), &proof.seed.to_string()));
+    let request_id = u256_from_hash(runtime::blake2b(helpers::encode_2(&key_hash, &proof.seed.to_string())));
+    helpers::log_msg(&format!("_get_randomness_from_proof request_id {:?}", &request_id.to_string()));
     let commitment = read_request_commitment(&request_id);
     if commitment == HashAddr::default() {
         revert(Error::NoCorrespondingRequest);
@@ -611,12 +623,10 @@ fn _get_randomness_from_proof(proof: &Proof, rc: &RequestCommitment) -> (HashAdd
 
     let block_hash = hex::decode(block_hash).unwrap();
     let block_hash: HashAddr = block_hash.try_into().unwrap();
-    let actual_seed = U256::from_bytes(&runtime::blake2b(helpers::encode_2(
+    let actual_seed = u256_from_hash(runtime::blake2b(helpers::encode_2(
         &proof.seed,
         &block_hash,
-    )))
-    .unwrap()
-    .0;
+    )));
 
     let randomness = vrf::random_value_from_vrf_proof(proof, actual_seed);
     (key_hash, request_id, randomness)

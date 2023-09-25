@@ -12,7 +12,7 @@ use casper_contract::{
 
 use crate::alloc::string::ToString;
 use casper_types::bytesrepr::FromBytes;
-use casper_types::CLTyped;
+use casper_types::{CLTyped, HashAddr};
 use casper_types::{api_error, bytesrepr, bytesrepr::ToBytes, ApiError, ContractPackageHash, Key};
 use casper_types::{runtime_args, system::CallStackElement, RuntimeArgs, URef, U256, U512};
 use core::convert::TryInto;
@@ -681,7 +681,7 @@ pub fn to_vec_string(strs: &[&str]) -> Vec<String> {
 }
 
 pub fn log_msg(_msg: &str) {
-    // runtime::print(_msg);
+    runtime::print(_msg);
 }
 
 pub fn set_last_updated_timestamp() {
@@ -695,4 +695,12 @@ pub fn set_size_32(primitive: &[u8]) -> [u8; 32] {
 /// Converts an `&[u8]` to a `[u8; 64]`.
 pub fn set_size_64(primitive: &[u8]) -> [u8; 64] {
     primitive.try_into().expect("slice with incorrect length")
+}
+
+pub fn u256_from_hash(h: HashAddr) -> U256 {
+    U256::from_str_radix(&hex::encode(h), 16).unwrap()
+}
+
+pub fn u256_from_hex(h: &str) -> U256 {
+    U256::from_str_radix(h, 16).unwrap()
 }

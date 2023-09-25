@@ -264,6 +264,16 @@ pub(crate) fn default() -> EntryPoints {
     ));
 
     entry_points.add_entry_point(EntryPoint::new(
+        String::from("hash_of_key"),
+        vec![
+            Parameter::new("public_proving_key", CLType::List(Box::new(CLType::U8))),
+        ],
+        CLType::ByteArray(32),
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    ));
+
+    entry_points.add_entry_point(EntryPoint::new(
         String::from("deposit_token"),
         vec![
             Parameter::new("amount", CLType::U128),
